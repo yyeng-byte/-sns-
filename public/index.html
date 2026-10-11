@@ -22,10 +22,14 @@
         </label>
         <label>기간
           <select id="f-days">
-            <option value="1개월" selected>최근 1개월</option><option value="3개월">최근 3개월</option>
+            <option value="1주">최근 7일</option><option value="1개월" selected>최근 1개월</option><option value="3개월">최근 3개월</option>
             <option value="6개월">최근 6개월</option><option value="12개월">최근 12개월</option><option value="직접">직접 설정</option>
           </select>
         </label>
+        <label>비교
+          <select id="f-cmp"><option value="auto" selected>전주·작년 동기 자동</option><option value="custom">직접 설정</option></select>
+        </label>
+        <span id="f-cmpdate" style="display:none">비교 시작일 <input type="date" id="f-cmpstart"></span>
         <span id="f-custom" style="display:none"><input type="date" id="f-start"> – <input type="date" id="f-end"></span>
         <span class="hint" id="f-hint"></span>
       </div>

@@ -47,7 +47,7 @@ const TITLES = {
 const CONTENTS = [];
 const seq = {};
 for (const b in BRANDS) for (const c in CHANNELS) {
-  const n = c === 'BL' ? 40 : 45;
+  const n = c === 'BL' ? 110 : 120;
   for (let k = 0; k < n; k++) {
     const ago = Math.round(R() * 700) + 1;
     const dt = dayDate(ago);

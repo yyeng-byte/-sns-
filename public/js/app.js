@@ -2,9 +2,19 @@ const TABS = [
   ['perf', '📊', '채널 성과'], ['traffic', '🔗', '유입 성과'], ['why', '🔍', '분석 (왜?)'], ['rise', '🚀', '급상승'],
   ['rec', '💡', '추천'], ['make', '✍️', '제작'], ['plan', '🗓️', '플래너']
 ];
-const PRESET = { '1개월': 30, '3개월': 90, '6개월': 180, '12개월': 360 };
+const PRESET = { '1주': 7, '1개월': 30, '3개월': 90, '6개월': 180, '12개월': 360 };
 const S = { tab: 'perf', brand: 'ALL', days: 30, end0: 0, sub: 'ops', ch: 'ALL', scope: 'ALL', more: 10 };
-const pr = period => { const f = period === 'cur' ? S.end0 : S.end0 + S.days; return [f, f + S.days - 1]; };
+S.cmpMode = 'auto'; S.cmpStart = null;
+const idx = d => Math.round((TODAY - d) / 864e5);
+const shiftYear = (d, y) => { const x = new Date(d); x.setFullYear(x.getFullYear() + y); return x; };
+function pr(period) {                           // 'cur' 이번 | 'prev' 직전 | 'yoy' 작년 동기 | 'cmp' 직접 지정 → [최근 인덱스, 오래된 인덱스]
+  const f0 = S.end0, t0 = S.end0 + S.days - 1;
+  if (period === 'cur') return [f0, t0];
+  if (period === 'prev') return [f0 + S.days, t0 + S.days];
+  if (period === 'yoy') return [idx(shiftYear(dayDate(f0), -1)), idx(shiftYear(dayDate(t0), -1))];
+  const t = idx(S.cmpStart || dayDate(t0 + S.days)); return [t - (S.days - 1), t];
+}
+const valid = period => { const [f, t] = pr(period); return f >= 0 && t <= DAYS - 1; };
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const n = v => Math.round(v).toLocaleString('ko-KR');
@@ -18,7 +28,8 @@ function sumDaily(b, c, from, to) {           // from~to 일 전 (포함)
 }
 function agg(chs, period) {                   // period: 'cur' | 'prev'
   const [from, to] = pr(period);
-  const t = { reach: 0, views: 0, eng: 0, clicks: 0, gain: 0 };
+  const t = { reach: 0, views: 0, eng: 0, clicks: 0, gain: 0, na: !valid(period) };
+  if (t.na) return t;
   brands().forEach(b => chs.forEach(c => { const x = sumDaily(b, c, from, to); for (const k in t) t[k] += x[k]; }));
   return t;
 }
@@ -44,13 +55,14 @@ function lineChart(series, labels) {                   // series: [{name,color,v
   const w = 640, h = 190, p = 28, all = series.flatMap(s => s.vals), mx = Math.max(...all) * 1.08, len = series[0].vals.length;
   const X = i => p + i / (len - 1) * (w - p - 8), Y = v => h - 22 - v / mx * (h - 34);
   const grid = [0, .5, 1].map(f => `<line x1="${p}" x2="${w - 8}" y1="${Y(mx * f)}" y2="${Y(mx * f)}" stroke="var(--line)"/><text x="0" y="${Y(mx * f) + 4}" font-size="10" fill="var(--sub)">${mx >= 5000 ? n(mx * f / 1000) + 'k' : n(mx * f)}</text>`).join('');
-  const lines = series.map(s => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="6 5"' : ''} points="${s.vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}"/>`).join('');
+  const lines = series.map(s => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? `stroke-dasharray="${s.dash === 1 ? '6 5' : s.dash}"` : ''} points="${s.vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}"/>`).join('');
   const legend = series.map(s => `<span><span class="dot" style="background:${s.color}"></span>${s.name}</span>`).join(' &nbsp; ');
   return `<div class="hint" style="margin-bottom:4px">${legend}</div><svg viewBox="0 0 ${w} ${h}" width="100%">${grid}${lines}${labels ? `<text x="${p}" y="${h - 4}" font-size="10" fill="var(--sub)">${labels[0]}</text><text x="${w - 8}" y="${h - 4}" font-size="10" text-anchor="end" fill="var(--sub)">${labels[1]}</text>` : ''}</svg>`;
 }
 function dailySeries(chs, key, period) {  // period: 'cur' | 'prev'         // 오래된 → 최근 (이동평균 3일)
   const out = [];
   const [pf, pt] = pr(period || 'cur');
+  if (!valid(period || 'cur')) return [];
   for (let i = pt; i >= pf; i--) {
     let t = 0; brands().forEach(b => chs.forEach(c => { t += DAILY[b][c][i][key]; })); out.push(t);
   }
@@ -64,36 +76,64 @@ const chName = c => c === 'CF' ? '네이버 카페' : CHANNELS[c];
 const hasCafe = () => brands().includes('SE');
 const pick = () => S.ch === 'ALL' ? ALLCH : [S.ch];
 
+// ---------- 비교 기간 (전주/직전 · 작년 동기 · 직접 지정) ----------
+const prevLabel = () => S.days === 7 ? '전주' : (S.days >= 28 && S.days <= 31) ? '전월' : '직전 기간';
+const cmpList = () => S.cmpMode === 'custom' ? [['비교 기간', 'cmp']] : [[prevLabel(), 'prev'], ['작년 동기', 'yoy']];
+const rangeText = p => { const [f, t] = pr(p); return `${fmtD(dayDate(t))}–${fmtD(dayDate(f))}`; };
+function badges(get, chs) {                   // 이번 값 대비 비교 기간별 증감률
+  const c = get(agg(chs, 'cur'));
+  return `<div class="cmp">${cmpList().map(([l, p]) => { const a = agg(chs, p); return `<span><small>${l}</small> ${a.na ? '<span class="delta flat">데이터 없음</span>' : delta(chg(c, get(a)))}</span>`; }).join('')}</div>`;
+}
+const legendLine = () => `<span class="hint">이번 ${rangeText('cur')}${cmpList().map(([l, p]) => ` · ${l} ${valid(p) ? rangeText(p) : '(데이터 없음)'}`).join('')}</span>`;
+const trendSeries = (chs, key) => [{ name: '이번 기간', color: 'var(--brand)', vals: dailySeries(chs, key, 'cur') },
+  ...cmpList().filter(([, p]) => valid(p)).map(([l, p], i) => ({ name: l, color: i ? 'var(--c-bl)' : 'var(--sub)', dash: i ? '2 4' : 1, vals: dailySeries(chs, key, p) }))];
+
 function viewOps() {
-  const chs = pick(), cur = agg(chs, 'cur'), prev = agg(chs, 'prev');
+  const chs = pick(), all = S.ch === 'ALL';
   const tabs = [['ALL', '전체'], ...ALLCH.map(c => [c, CHANNELS[c]])].map(([k, l]) => `<button class="${S.ch === k ? 'on' : ''}" onclick="S.ch='${k}';render()">${l}</button>`).join('');
   const list = myContents().filter(c => chs.includes(c.ch) && inPeriod(c, 'cur'));
   const byFmt = {}; list.forEach(c => { const r = byFmt[c.format] ||= { n: 0, reach: 0 }; r.n++; r.reach += c.reach; });
   const best = Object.entries(byFmt).sort((a, b) => b[1].reach / b[1].n - a[1].reach / a[1].n)[0];
-  const dR = chg(cur.reach, prev.reach);
-  const label = S.ch === 'ALL' ? '전체 채널' : CHANNELS[S.ch];
-  const insight = `${label} 도달이 직전 대비 ${dR >= 0 ? '+' : ''}${dR.toFixed(1)}% ${dR >= 3 ? '상승' : dR <= -3 ? '하락' : '정체'}했습니다.${best ? ` 이번 기간 평균 도달이 가장 높은 포맷은 ${best[0]}(${n(best[1].reach / best[1].n)})입니다.` : ''}`;
+  const cur = agg(chs, 'cur');
+  const label = all ? '전체 채널' : CHANNELS[S.ch];
+  const parts = cmpList().map(([l, p]) => { const a = agg(chs, p); return a.na ? '' : `${l} 대비 ${chg(cur.reach, a.reach) >= 0 ? '+' : ''}${chg(cur.reach, a.reach).toFixed(1)}%`; }).filter(Boolean).join(', ');
+  const insight = `${label} 도달은 ${parts || '비교 데이터 없음'}입니다.${best ? ` 이번 기간 평균 도달이 가장 높은 포맷은 ${best[0]}(${n(best[1].reach / best[1].n)})입니다.` : ''}`;
   const kp = [['views', '조회', '채널 합계'], ['reach', '도달', '중복 포함'], ['eng', '반응', '좋아요·댓글·공유·저장'], ['gain', '팔로워 증가', '순증가']];
-  const kpis = kp.map(([k, l, note]) => `<div class="card kpi"><div class="lbl">${l}</div><div class="val">${n(cur[k])}</div>${delta(chg(cur[k], prev[k]))} <span class="hint">${note}</span><div>${spark(dailySeries(chs, k, 'cur'), 'var(--brand)')}</div></div>`).join('');
+  const kpis = kp.map(([k, l, note]) => `<div class="card kpi"><div class="lbl">${l} <span class="hint">${note}</span></div><div class="val">${n(cur[k])}</div>${badges(a => a[k], chs)}<div>${spark(dailySeries(chs, k, 'cur'), 'var(--brand)')}</div></div>`).join('');
 
-  const er = cur.eng / cur.reach, erP = prev.eng / prev.reach;
+  const chCards = ALLCH.map(c => {
+    const a = agg([c], 'cur');
+    const row = (l, v, g) => `<div class="mrow"><span>${l}</span><b>${v}</b>${badges(g, [c])}</div>`;
+    return `<div class="card chcard" style="border-top:3px solid ${CH_COLOR[c]}"><h3><span class="dot" style="background:${CH_COLOR[c]}"></span>${CHANNELS[c]} <a class="more" onclick="S.ch='${c}';render()">상세 →</a></h3>
+      ${row('도달', n(a.reach), x => x.reach)}${row('조회', n(a.views), x => x.views)}${row('반응', `${n(a.eng)} <small>(${(a.eng / a.reach * 100).toFixed(1)}%)</small>`, x => x.eng)}${row('팔로워 증가', '+' + n(a.gain), x => x.gain)}</div>`;
+  }).join('');
+
   const bestDay = (() => { const t = [0, 0, 0, 0, 0, 0, 0], c = [0, 0, 0, 0, 0, 0, 0]; brands().forEach(b => chs.forEach(ch => { for (let i = S.end0; i < S.end0 + S.days; i++) { const d = DAILY[b][ch][i]; t[d.date.getDay()] += d.reach; c[d.date.getDay()]++; } })); const avg = t.map((v, i) => v / (c[i] || 1)); return '일월화수목금토'[avg.indexOf(Math.max(...avg))] + '요일'; })();
   const topCh = ALLCH.map(c => [c, agg([c], 'cur')]).sort((a, b) => b[1].eng / b[1].reach - a[1].eng / a[1].reach)[0];
   const sched = myContents().filter(c => c.ago < 0 && c.ago >= -7).length;
-  const signals = [['반응률', `${(er * 100).toFixed(1)}% (직전 ${(erP * 100).toFixed(1)}%)`], ['도달이 가장 높은 요일', bestDay], ['반응률 최고 채널', `${CHANNELS[topCh[0]]} · ${(topCh[1].eng / topCh[1].reach * 100).toFixed(1)}%`], ['앞으로 7일 발행 예정', `${sched}건`]];
+  const signals = [['반응률', `${(cur.eng / cur.reach * 100).toFixed(1)}%`], ['도달이 가장 높은 요일', bestDay], ['반응률 최고 채널', `${CHANNELS[topCh[0]]} · ${(topCh[1].eng / topCh[1].reach * 100).toFixed(1)}%`], ['앞으로 7일 발행 예정', `${sched}건`]];
 
   const best1 = [...list].sort((a, b) => b.reach - a.reach)[0], recent = [...list].sort((a, b) => a.ago - b.ago)[0], rising = myContents().filter(c => chs.includes(c.ch) && c.status === 'published' && c.ago < 45).sort((a, b) => b.growth7 - a.growth7)[0];
   const hi = [['BEST', best1, c => `조회 ${n(c.views)} · 반응 ${n(c.eng)}`], ['RECENT', recent, c => `${mmdd(c.date)} 발행 · 조회 ${n(c.views)}`], ['RISING', rising, c => `최근 7일 ${c.growth7 >= 0 ? '+' : ''}${c.growth7}% · 조회 ${n(c.views)}`]]
     .filter(x => x[1]).map(([t, c, f]) => `<div class="hl"><span class="tag">${t}</span><span class="tag">${CHANNELS[c.ch]} · ${c.format}</span><b>${esc(c.title)}</b><div class="hint">${f(c)}</div><div class="hint">${c.id}</div></div>`).join('');
-
   const rowsC = [...list].sort((x, y) => y.reach - x.reach).slice(0, 10).map(c => `<tr><td class="l"><b>${esc(c.title)}</b><br><span class="tag">${CHANNELS[c.ch]}</span><span class="tag">${c.format}</span><span class="tag">${c.id}</span></td><td>${mmdd(c.date)}</td><td>${n(c.views)}</td><td>${n(c.reach)}</td><td>${n(c.eng)}</td><td>${(c.eng / c.reach * 100).toFixed(1)}%</td></tr>`).join('');
-  return `<div class="subtabs">${tabs}<span class="hint">${rangeLabel()} · 직전 같은 길이 기간과 비교 · 채널 안에서의 성과</span></div>
+
+  const pastP = S.cmpMode === 'custom' ? 'cmp' : 'yoy';
+  const pastList = valid(pastP) ? myContents().filter(c => chs.includes(c.ch) && inPeriod(c, pastP)).sort((x, y) => y.reach - x.reach).slice(0, 5) : [];
+  const pastRows = pastList.map((c, i) => `<tr><td>${i + 1}</td><td class="l"><b>${esc(c.title)}</b><br><span class="tag">${BRANDS[c.brand]}</span><span class="tag">${CHANNELS[c.ch]}</span><span class="tag">${c.format}</span><span class="tag">${c.topic}</span></td><td>${fmtD(c.date)}</td><td>${n(c.views)}</td><td>${n(c.eng)}</td><td>${(c.eng / c.reach * 100).toFixed(1)}%</td><td><button onclick="toMake('${esc(c.title)}','${c.brand}')">올해 다시 만들기</button></td></tr>`).join('');
+  const past = `<div class="card"><h3>${pastP === 'yoy' ? '작년 동기간' : '비교 기간'} 인기 콘텐츠 <small>${valid(pastP) ? rangeText(pastP) : ''} · 도달순 상위 5건</small></h3>${valid(pastP) ? `<div class="tablewrap"><table><tr><th>#</th><th class="l">콘텐츠</th><th>발행</th><th>조회</th><th>반응</th><th>반응률</th><th></th></tr>${pastRows || '<tr><td colspan=7>해당 기간 발행 콘텐츠 없음</td></tr>'}</table></div><p class="hint">시즌성 소재를 올해 일정에 다시 올릴 때 참고하세요. 버튼을 누르면 제작 화면으로 이동합니다.</p>` : '<span class="hint">해당 기간 데이터가 없습니다.</span>'}</div>`;
+  const top = all
+    ? `<div class="grid g4">${kpis}</div><div class="grid g3" style="margin-top:12px">${chCards}</div>
+       <div class="grid g2" style="margin-top:12px"><div class="card"><h3>채널별 도달 추이 <small>이번 기간 · 3일 이동평균</small></h3>${lineChart(ALLCH.map(c => ({ name: CHANNELS[c], color: CH_COLOR[c], vals: dailySeries([c], 'reach', 'cur') })), [fmtD(dayDate(S.end0 + S.days - 1)), fmtD(dayDate(S.end0))])}</div>
+       <div class="card"><h3>특이사항 <small>지금 확인하면 좋은 신호</small></h3><table>${signals.map((s, i) => `<tr><td class="l"><b>${i + 1}. ${s[0]}</b></td><td>${s[1]}</td></tr>`).join('')}</table></div></div>`
+    : `<div class="grid g4">${kpis}</div><div class="grid g2" style="margin-top:12px">
+       <div class="card"><h3>${label} 도달 추이 <small>3일 이동평균 · 점선/점=비교 기간</small></h3>${lineChart(trendSeries(chs, 'reach'), [fmtD(dayDate(S.end0 + S.days - 1)), fmtD(dayDate(S.end0))])}</div>
+       <div class="card"><h3>${label} 특이사항 <small>지금 확인하면 좋은 신호</small></h3><table>${signals.map((s, i) => `<tr><td class="l"><b>${i + 1}. ${s[0]}</b></td><td>${s[1]}</td></tr>`).join('')}</table></div></div>`;
+
+  return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()}</div>
   <div class="banner"><div><b>${label} 핵심 인사이트</b> <span class="sample">규칙 기반 샘플 · 실제는 Claude 해설</span><br>${insight}</div><button onclick="S.tab='why';render()">원인 분석 보기 →</button></div>
-  <div class="grid g4">${kpis}</div>
-  <div class="grid g2" style="margin-top:12px">
-   <div class="card"><h3>${label} 성과 추이 <small>도달 · 3일 이동평균 · 점선=직전 기간</small></h3>${lineChart([{ name: '이번 기간', color: 'var(--brand)', vals: dailySeries(chs, 'reach', 'cur') }, { name: '직전 기간', color: 'var(--sub)', dash: 1, vals: dailySeries(chs, 'reach', 'prev') }], ['시작', '끝'])}</div>
-   <div class="card"><h3>${label} 특이사항 <small>지금 확인하면 좋은 신호</small></h3><table>${signals.map((s, i) => `<tr><td class="l"><b>${i + 1}. ${s[0]}</b></td><td>${s[1]}</td></tr>`).join('')}</table></div>
-  </div>
+  ${top}
+  <div style="margin-top:12px">${past}</div>
   <div class="card"><h3>콘텐츠 하이라이트 <small>반응이 좋았던 콘텐츠와 최근 성과</small></h3><div class="grid g3">${hi || '<span class="hint">기간 내 콘텐츠 없음</span>'}</div></div>
   <div class="card"><h3>콘텐츠별 채널 성과 <small>도달순 상위 10건 / 전체 ${list.length}건 · 링크 유입은 [유입 성과]에서</small></h3><div class="tablewrap"><table><tr><th>콘텐츠</th><th>발행</th><th>조회</th><th>도달</th><th>반응</th><th>반응률</th></tr>${rowsC || '<tr><td colspan=6>기간 내 발행 콘텐츠 없음</td></tr>'}</table></div></div>`;
 }
@@ -105,8 +145,8 @@ function clickDay(scope, i) {
   if (scope !== 'CF') brands().forEach(b => (scope === 'ALL' ? ALLCH : [scope]).forEach(c => { t += DAILY[b][c][i].clicks; }));
   return t;
 }
-function clickSum(scope, period) { const [f, t] = pr(period); let s = 0; for (let i = f; i <= t; i++) s += clickDay(scope, i); return s; }
-function clickSeries(scope, period) { const [f, t] = pr(period); const o = []; for (let i = t; i >= f; i--) o.push(clickDay(scope, i)); return o; }
+function clickSum(scope, period) { if (!valid(period)) return null; const [f, t] = pr(period); let s = 0; for (let i = f; i <= t; i++) s += clickDay(scope, i); return s; }
+function clickSeries(scope, period) { if (!valid(period)) return []; const [f, t] = pr(period); const o = []; for (let i = t; i >= f; i--) o.push(clickDay(scope, i)); return o; }
 
 function cause(c, avgReach, avgRate) {
   const rate = c.clicks / c.views, hiR = c.reach >= avgReach, hiC = rate >= avgRate;
@@ -130,16 +170,16 @@ function viewRank() {
   if (!scopes.includes(S.scope)) S.scope = 'ALL';
   const tabs = scopes.map(k => `<button class="${S.scope === k ? 'on' : ''}" onclick="S.scope='${k}';S.more=10;render()">${k === 'ALL' ? '전체' : chName(k)}</button>`).join('');
   const cur = clickSum(S.scope, 'cur'), prev = clickSum(S.scope, 'prev');
-  const chRows = scopes.filter(k => k !== 'ALL').map(k => ({ k, v: clickSum(k, 'cur'), p: clickSum(k, 'prev') }));
+  const chRows = scopes.filter(k => k !== 'ALL').map(k => ({ k, v: clickSum(k, 'cur'), p: clickSum(k, 'prev') || 0 }));
   const tot = chRows.reduce((s, r) => s + r.v, 0), mx = Math.max(1, ...chRows.map(r => r.v));
   const bars = chRows.map(r => `<button class="cbar ${S.scope === r.k ? 'sel' : ''}" onclick="S.scope='${r.k}';S.more=10;render()"><em>${n(r.v)}</em><div><i style="height:${Math.max(8, r.v / mx * 100)}%;background:${CH_COLOR[r.k] || 'var(--c-bt)'}"></i></div><b>${chName(r.k)}</b><small>${(r.v / tot * 100).toFixed(1)}% · ${delta(chg(r.v, r.p))}</small></button>`).join('');
   const rows = S.scope === 'CF' ? [] : rankRows();
   const body = rows.slice(0, S.more).map((c, i) => `<tr><td>${i + 1}</td><td class="l"><b>${esc(c.title)}</b><br><span class="tag">${CHANNELS[c.ch]}</span><span class="tag">${c.format}</span><span class="tag">${c.id}</span></td><td><b>${n(c.clicks)}</b></td><td>${(c.rate * 100).toFixed(2)}%</td><td class="l" style="white-space:normal;min-width:260px">${c.why}</td></tr>`).join('');
   const label = S.scope === 'ALL' ? '전체' : chName(S.scope);
-  return `<div class="subtabs">${tabs}<span class="hint">${rangeLabel()} · 채널 밖에서 우리 사이트로 들어온 유입(비틀리 클릭)</span></div>
-  <div class="card kpi big"><div class="lbl">${label} 유입수 <span class="hint">· 비틀리 클릭 합계 (샘플)</span></div><div class="val">${n(cur)}</div>${delta(chg(cur, prev))} <span class="hint">직전 기간 ${n(prev)}</span></div>
+  return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()} <span class="hint">· 채널 밖에서 우리 사이트로 들어온 유입(비틀리 클릭)</span></div>
+  <div class="card kpi big"><div class="lbl">${label} 유입수 <span class="hint">· 비틀리 클릭 합계 (샘플)</span></div><div class="val">${n(cur)}</div><div class="cmp">${cmpList().map(([l, p]) => { const v = clickSum(S.scope, p); return `<span><small>${l}</small> ${v === null ? '<span class="delta flat">데이터 없음</span>' : delta(chg(cur, v))}</span>`; }).join('')}</div></div>
   <div class="grid g2" style="margin-top:12px">
-   <div class="card"><h3>${label} 유입 추이 <small>점선=직전 기간</small></h3>${lineChart([{ name: '이번 기간', color: 'var(--brand)', vals: clickSeries(S.scope, 'cur') }, { name: '직전 기간', color: 'var(--sub)', dash: 1, vals: clickSeries(S.scope, 'prev') }], ['시작', '끝'])}</div>
+   <div class="card"><h3>${label} 유입 추이 <small>점선/점=비교 기간</small></h3>${lineChart([{ name: '이번 기간', color: 'var(--brand)', vals: clickSeries(S.scope, 'cur') }, ...cmpList().filter(([, p]) => valid(p)).map(([l, p], i) => ({ name: l, color: i ? 'var(--c-bl)' : 'var(--sub)', dash: i ? '2 4' : 1, vals: clickSeries(S.scope, p) }))], [fmtD(dayDate(S.end0 + S.days - 1)), fmtD(dayDate(S.end0))])}</div>
    <div class="card"><h3>채널별 유입 <small>막대를 누르면 해당 채널 선택</small></h3><div class="cbars">${bars}</div></div>
   </div>
   <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>${label} 유입 링크 순위 <small>${rangeLabel()} · ${rows.length}건 · 클릭순</small></h3><button onclick="downloadCsv()">엑셀(CSV) 내려받기</button></div>
@@ -255,8 +295,16 @@ function applyRange() {
   const v = $('#f-days').value, custom = v === '직접';
   $('#f-custom').style.display = custom ? '' : 'none';
   if (!custom) { S.days = PRESET[v]; S.end0 = 0; }
-  else { const s = $('#f-start').valueAsDate, e = $('#f-end').valueAsDate; if (s && e && e >= s) { const tz = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()); S.end0 = Math.max(0, Math.round((TODAY - tz(new Date(e.getTime() + e.getTimezoneOffset() * 60000))) / 864e5)); S.days = Math.min(360, Math.round((e - s) / 864e5) + 1); } }
+  else { const s = $('#f-start').valueAsDate, e = $('#f-end').valueAsDate; if (s && e && e >= s) { const loc = x => new Date(x.getTime() + x.getTimezoneOffset() * 60000); S.end0 = Math.max(0, idx(loc(e))); S.days = Math.min(360, Math.round((e - s) / 864e5) + 1); } }
+  applyCmp();
+}
+function applyCmp() {
+  const custom = $('#f-cmp').value === 'custom';
+  $('#f-cmpdate').style.display = custom ? '' : 'none';
+  S.cmpMode = custom ? 'custom' : 'auto';
+  const v = $('#f-cmpstart').valueAsDate; S.cmpStart = custom && v ? new Date(v.getTime() + v.getTimezoneOffset() * 60000) : null;
   S.more = 10; render();
 }
 $('#f-days').onchange = applyRange; $('#f-start').onchange = applyRange; $('#f-end').onchange = applyRange;
+$('#f-cmp').onchange = applyCmp; $('#f-cmpstart').onchange = applyCmp;
 render();
