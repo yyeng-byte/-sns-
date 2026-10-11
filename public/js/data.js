@@ -3,7 +3,7 @@ const BRANDS = { KK: '키드키즈', SE: '실버에듀넷' };
 const CHANNELS = { IG: '인스타그램', YT: '유튜브', BL: '네이버 블로그' };
 const CH_COLOR = { IG: 'var(--c-ig)', YT: 'var(--c-yt)', BL: 'var(--c-bl)' };
 const STATUS = { idea: '아이디어', drafting: '제작중', review: '검수', scheduled: '발행예정', published: '발행완료' };
-const DAYS = 120;
+const DAYS = 730;
 
 function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const R = rng(20261011);
@@ -47,9 +47,9 @@ const TITLES = {
 const CONTENTS = [];
 const seq = {};
 for (const b in BRANDS) for (const c in CHANNELS) {
-  const n = c === 'BL' ? 12 : 14;
+  const n = c === 'BL' ? 40 : 45;
   for (let k = 0; k < n; k++) {
-    const ago = Math.round(R() * 100) + 1;
+    const ago = Math.round(R() * 700) + 1;
     const dt = dayDate(ago);
     const key = b + c + ymd(dt); seq[key] = (seq[key] || 0) + 1;
     const fmt = FORMATS[c][Math.floor(R() * FORMATS[c].length)];
@@ -96,3 +96,7 @@ const KEYWORDS = [
   { brand: 'SE', kw: '키오스크 사용법', vol: 21500, comp: '중', docs: 44000, chg: 9, why: '꾸준한 수요, 내 후기 콘텐츠와 연결 가능' },
   { brand: 'SE', kw: '스마트폰 사진 정리', vol: 6700, comp: '낮음', docs: 9100, chg: 18, why: '내 블로그 상위 글 주제와 일치' },
 ];
+
+// 실버에듀넷 네이버 카페: 비틀리 클릭만 수집 (기존 대시보드의 '실버카페' 링크 규칙)
+const CAFE_DAILY = [];
+for (let i = DAYS - 1; i >= 0; i--) CAFE_DAILY[i] = Math.round(70 * (0.6 + R() * 0.9) * (i < 20 ? 1.1 : 1));

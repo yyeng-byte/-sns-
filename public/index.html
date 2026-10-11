@@ -22,11 +22,11 @@
         </label>
         <label>기간
           <select id="f-days">
-            <option value="7">최근 7일</option>
-            <option value="30" selected>최근 30일</option>
-            <option value="60">최근 60일</option>
+            <option value="1개월" selected>최근 1개월</option><option value="3개월">최근 3개월</option>
+            <option value="6개월">최근 6개월</option><option value="12개월">최근 12개월</option><option value="직접">직접 설정</option>
           </select>
         </label>
+        <span id="f-custom" style="display:none"><input type="date" id="f-start"> – <input type="date" id="f-end"></span>
         <span class="hint" id="f-hint"></span>
       </div>
     </header>
