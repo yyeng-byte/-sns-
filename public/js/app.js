@@ -143,16 +143,21 @@ function issues() {
   const order = { bad: 0, warn: 1, good: 2, info: 3 };
   return out.sort((a, b) => order[a.sev] - order[b.sev]).slice(0, 7);
 }
+function tile(c, key, label, fmt) {
+  const cur = agg([c], 'cur')[key];
+  return `<div class="tile"><small>${label}</small><b>${fmt(cur)}</b>${badges(x => x[key], [c])}</div>`;
+}
 function viewSummary(tabs) {
   const cards = ALLCH.map(c => {
     const a = agg([c], 'cur');
+    const line = miniLine([{ color: CH_COLOR[c], w: 2.5, vals: dailySeries([c], 'reach', 'cur') }]);
     return `<div class="card chcard" style="border-top:3px solid ${CH_COLOR[c]}"><h3><span class="dot" style="background:${CH_COLOR[c]}"></span>${CHANNELS[c]} <a class="more" onclick="S.ch='${c}';render()">상세 →</a></h3>
-      ${metricBlock(c, 'reach', '도달', n)}${metricBlock(c, 'views', '조회', n)}${metricBlock(c, 'eng', `반응 <small>(반응률 ${(a.eng / a.reach * 100).toFixed(1)}%)</small>`, n)}${metricBlock(c, 'gain', '팔로워 증가', v => '+' + n(v))}</div>`;
+      <div class="tiles">${tile(c, 'reach', '도달', n)}${tile(c, 'views', '조회', n)}${tile(c, 'eng', '반응', n)}${tile(c, 'gain', '팔로워 증가', v => '+' + n(v))}</div>
+      <div class="hint" style="margin-top:10px">도달 추이 (이번 기간)</div>${line}</div>`;
   }).join('');
   const SEV = { bad: ['주의', 'bad'], warn: ['확인', 'warn'], good: ['호재', 'good'], info: ['참고', 'info'] };
   const list = issues().map(i => `<div class="issue ${i.sev}"><span class="sev">${SEV[i.sev][0]}</span><div><b>${i.t}</b><div class="hint">→ ${i.a}</div></div></div>`).join('');
-  const lg = `<span class="lg"><svg width="30" height="8"><line x1="0" x2="30" y1="4" y2="4" stroke="var(--brand)" stroke-width="2.5"/></svg>이번</span>` + cmpList().map(([l], i) => `<span class="lg"><svg width="30" height="8"><line x1="0" x2="30" y1="4" y2="4" stroke="var(--sub)" stroke-width="1.8" stroke-dasharray="${i ? '2 3' : '6 4'}"/></svg>${l}</span>`).join('');
-  return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()}</div><div class="subtabs">${lg}<span class="hint">· 선=일별 추이(3일 이동평균) · 굵은 점=최근 값</span></div>
+  return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()}</div>
   <div class="grid g3">${cards}</div>
   <div class="grid g3" style="margin-top:12px">${topCards()}</div>
   <div class="card" style="margin-top:12px"><h3>핵심 이슈 <small>세 채널을 통합해서 본 변화와 점검 사항</small> <span class="sample">규칙 기반 샘플 · 실제는 Claude가 요약</span></h3>${list}</div>`;
