@@ -1,7 +1,7 @@
 // 매일 자동 수집용 엔드포인트. POST /api/collect?source=youtube|instagram|all&brand=KK|SE|all&days=3&dry=1
 // 과거 채우기: &end=2025-10-31&only=daily (end 날짜까지 days일치 일별 성과만 저장)
 // 헤더 X-Collect-Secret 이 환경변수 COLLECT_SECRET 과 같아야 실행됨.
-import { upsert, readTab, appendLog } from '../_lib/sheet.js';
+import { upsert, readTab, appendLog } from '../_lib/db.js';
 import { collectYouTube } from '../_lib/youtube.js';
 import { collectInstagram } from '../_lib/instagram.js';
 
@@ -14,7 +14,7 @@ export async function runOne(env, source, brand, { days, dry, today, dailyOnly }
   const collect = source === 'youtube' ? collectYouTube : collectInstagram;
   const out = await collect(env, brand, { days, today, skipContents: dailyOnly });
   const ch = source === 'youtube' ? 'YT' : 'IG';
-  // 1) 콘텐츠: 이미 있는 건 external_id 로 매칭, 새 글은 콘텐츠 ID 자동 부여
+  // 1) 콘텐츠: 이미 있는 건 external_id 로 매칭, 새 글은 콘텐츠 ID 자동 부여 (콘텐츠 성과는 매일 content_metrics 에 자동 저장)
   const { rows } = await readTab(env, 'contents');
   const byExt = new Map(rows.filter(r => r.external_id && r.brand === brand && r.channel === ch).map(r => [String(r.external_id), r.content_id]));
   const used = new Set(rows.map(r => r.content_id));
@@ -33,7 +33,7 @@ export async function runOne(env, source, brand, { days, dry, today, dailyOnly }
   const metrics = out.metrics.filter(m => idOf.has(String(m.external_id))).map(({ external_id, ...m }) => { const content_id = idOf.get(String(external_id)); return { ...m, content_id, key: `${content_id}|${m.snapshot_date}`, collected_at: stamp }; });
   const daily = out.daily.map(d => ({ ...d, key: `${d.brand}|${d.channel}|${d.date}`, collected_at: stamp }));
   const r = {
-    contents: await upsert(env, 'contents', newContents, 'content_id', { dry }),   // 새 글만 추가(기존 행은 사람이 고친 값 보호)
+    contents: await upsert(env, 'contents', newContents, 'content_id', { dry }),   // 새 글만 추가(기존 행은 보호)
     metrics: await upsert(env, 'content_metrics', metrics, 'key', { dry }),
     daily: await upsert(env, 'channel_daily', daily, 'key', { dry }),
   };

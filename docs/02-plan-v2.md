@@ -7,7 +7,7 @@
 성과 / 분석(왜?) / 급상승 / 추천 / 제작 / 플래너
 
 ## 결정 사항
-- 데이터 저장: 구글 시트 (회사 계정으로 만들고 관리자 이관). 구조는 `01-sheet-design.md` 유지 (콘텐츠 ID로 연결)
+- 데이터 저장: ~~구글 시트~~ → **Cloudflare D1로 변경** (표 구조는 `01-sheet-design.md`를 기준으로 하되 `schema/sheet-schema.json`이 최신, 콘텐츠 ID로 연결)
 - 자동 업로드: **보류** (자동 "제작"=문구·구성안·초안까지만)
 - 네이버 블로그: 통계 엑셀 업로드 + 초안은 복사해서 발행
 - 분석 원칙: 숫자로 먼저 분해(도달·반응률·클릭, 채널, 포맷, 발행 수) → Claude는 해석·제안만, 근거 숫자 병기
@@ -34,5 +34,6 @@
 
 ## 업데이트: 실데이터 연결(유튜브·인스타) 구현
 - 저장소 구조: `public/`(화면) · `functions/`(서버 함수: 시트 읽기/쓰기, 수집) · `schema/`(시트 양식 정의) · `sheet-template/`(시트 양식 엑셀) · `tests/`(가짜 API 테스트) · `.github/workflows/`(자동 수집·과거 채우기)
-- 시트 탭 추가: `channel_daily`(채널 일별 성과), `content_metrics`(콘텐츠 성과 스냅샷), `_sync`(수집 기록), `설명`
+- 저장소(DB): 구글 시트 대신 **Cloudflare D1** 로 변경 (시트·서비스 계정 불필요, 콘텐츠 성과 자동 저장, 엑셀은 CSV 내려받기)
+- 표 추가: `channel_daily`(채널 일별 성과), `content_metrics`(콘텐츠 성과 스냅샷), `_sync`(수집 기록). 정의는 `schema/sheet-schema.json`, 생성 SQL은 `migrations/0001_init.sql`
 - 설정 방법: `docs/03-실데이터-연결-안내.md`

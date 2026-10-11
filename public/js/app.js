@@ -360,7 +360,7 @@ function viewPlan() {
 // ---------- 공통 ----------
 const VIEWS = { perf: viewOps, traffic: viewRank, why: viewWhy, rise: viewRise, rec: viewRec, make: viewMake, plan: viewPlan };
 function render() {
-  $('.demo-note').innerHTML = LIVE_STATE.on ? `✅ <b>실데이터</b> 연결됨<br>갱신 ${new Date(LIVE_STATE.at).toLocaleString('ko-KR')}<br>※ 경쟁사·추천·블로그·비틀리는 아직 샘플/미연결` : '⚠ 지금은 <b>가짜 데이터</b> 화면입니다.<br>실제 연결은 다음 단계에서 진행합니다.';
+  $('.demo-note').innerHTML = LIVE_STATE.on ? `✅ <b>실데이터</b> 연결됨<br>갱신 ${new Date(LIVE_STATE.at).toLocaleString('ko-KR')}<br>※ 경쟁사·추천·블로그·비틀리는 아직 샘플/미연결<br>엑셀로 받기: <a href="api/export?tab=channel_daily">채널 일별</a> · <a href="api/export?tab=content_metrics">콘텐츠 성과</a> · <a href="api/export?tab=contents">콘텐츠 목록</a>` : '⚠ 지금은 <b>가짜 데이터</b> 화면입니다.<br>실제 연결은 다음 단계에서 진행합니다.';
   $('#nav').innerHTML = TABS.map(([k, i, l]) => `<a class="${S.tab === k ? 'on' : ''}" onclick="S.tab='${k}';render()">${i} ${l}</a>`).join('');
   $('#title').textContent = TABS.find(t => t[0] === S.tab)[2];
   $('#f-hint').textContent = '';
