@@ -88,9 +88,72 @@ const legendLine = () => `<span class="hint">이번 ${rangeText('cur')}${cmpList
 const trendSeries = (chs, key) => [{ name: '이번 기간', color: 'var(--brand)', vals: dailySeries(chs, key, 'cur') },
   ...cmpList().filter(([, p]) => valid(p)).map(([l, p], i) => ({ name: l, color: i ? 'var(--c-bl)' : 'var(--sub)', dash: i ? '2 4' : 1, vals: dailySeries(chs, key, p) }))];
 
+// ---------- 채널 성과 · 전체 요약 ----------
+function metricBlock(c, key, label, fmt) {
+  const cur = agg([c], 'cur')[key];
+  const items = [['이번', cur, null]].concat(cmpList().map(([l, p]) => { const a = agg([c], p); return [l, a.na ? null : a[key], a.na ? null : chg(cur, a[key])]; }));
+  const mx = Math.max(1, ...items.map(x => x[1] || 0));
+  const rows = items.map(([l, v, d], i) => `<div class="brow"><small>${l}</small><div class="track">${v === null ? '' : `<i style="width:${Math.max(2, v / mx * 100)}%;background:${i ? 'var(--sub)' : CH_COLOR[c]};opacity:${i === 0 ? 1 : i === 1 ? .5 : .28}"></i>`}</div><b>${v === null ? '—' : fmt(v)}</b><span class="dl">${d === null ? '' : delta(d)}</span></div>`).join('');
+  return `<div class="mblock"><div class="mlabel">${label}</div>${rows}</div>`;
+}
+function topCards() {
+  const defs = [['IG', 'reach', '도달'], ['YT', 'views', '조회'], ['BL', 'views', '조회']];
+  return defs.map(([ch, key, lab]) => {
+    const l = myContents().filter(c => c.ch === ch && inPeriod(c, 'cur')).sort((a, b) => b[key] - a[key]).slice(0, 3);
+    return `<div class="card" style="border-top:3px solid ${CH_COLOR[ch]}"><h3><span class="dot" style="background:${CH_COLOR[ch]}"></span>${CHANNELS[ch]} 인기 콘텐츠 <small>${lab}순 TOP3</small></h3>${l.map((c, i) => `<div class="trow"><i>${i + 1}</i><div><b>${esc(c.title)}</b><div class="hint">${S.brand === 'ALL' ? BRANDS[c.brand] + ' · ' : ''}${c.format} · ${mmdd(c.date)} · ${c.id}</div></div><div class="tv"><b>${n(c[key])}</b><small>${lab}</small></div></div>`).join('') || '<span class="hint">기간 내 발행 콘텐츠 없음</span>'}</div>`;
+  }).join('');
+}
+function issues() {
+  const out = [], cp = cmpList(), L1 = cp[0][0], L2 = cp[1] && cp[1][0];
+  const cur = {}, p1 = {}, p2 = {};
+  ALLCH.forEach(c => { cur[c] = agg([c], 'cur'); p1[c] = agg([c], cp[0][1]); p2[c] = cp[1] ? agg([c], cp[1][1]) : null; });
+  const M = [['reach', '도달'], ['eng', '반응'], ['gain', '팔로워 증가'], ['clicks', '링크 유입']];
+  let big = null;
+  ALLCH.forEach(c => M.forEach(([k, l]) => { if (p1[c].na || !p1[c][k]) return; const d = chg(cur[c][k], p1[c][k]); if (!big || Math.abs(d) > Math.abs(big.d)) big = { c, l, d }; }));
+  if (big && Math.abs(big.d) >= 5) out.push({ sev: big.d > 0 ? 'good' : 'bad', t: `${CHANNELS[big.c]} ${big.l}이(가) ${L1} 대비 ${big.d > 0 ? '+' : ''}${big.d.toFixed(1)}%로 가장 크게 변했습니다`, a: big.d > 0 ? '상승 요인(소재·포맷)을 [분석] 탭에서 확인하고 다른 채널에도 적용해 보세요.' : '[분석] 탭에서 원인을 확인하고 이번 주 편성에 보완하세요.' });
+  if (L2) ALLCH.forEach(c => {
+    if (p1[c].na || p2[c].na) return;
+    const a = chg(cur[c].reach, p1[c].reach), b = chg(cur[c].reach, p2[c].reach);
+    if (a > 3 && b < -3) out.push({ sev: 'warn', t: `${CHANNELS[c]} 도달: ${L1} 대비 ${a.toFixed(1)}% 올랐지만 ${L2}보다는 ${Math.abs(b).toFixed(1)}% 낮습니다`, a: '단기 회복 중이나 작년 수준엔 못 미칩니다. 작년 동기 인기 콘텐츠를 올해 다시 만들어 보세요.' });
+    if (a < -3 && b > 3) out.push({ sev: 'warn', t: `${CHANNELS[c]} 도달: ${L1} 대비 ${Math.abs(a).toFixed(1)}% 떨어졌지만 ${L2}보다는 ${b.toFixed(1)}% 높습니다`, a: '일시적 하락일 수 있습니다. 다음 주 추이까지 확인하세요.' });
+  });
+  ALLCH.forEach(c => {
+    if (p1[c].na) return;
+    const r = chg(cur[c].reach, p1[c].reach), g = chg(cur[c].gain, p1[c].gain);
+    if (r > 5 && g < -5) out.push({ sev: 'warn', t: `${CHANNELS[c]}: 도달은 늘었지만 팔로워 증가는 줄었습니다 (도달 ${r.toFixed(1)}%, 팔로워 ${g.toFixed(1)}%)`, a: '노출이 팔로우로 이어지지 않습니다. 프로필 링크·마지막 장 CTA·고정댓글을 점검하세요.' });
+    const e0 = p1[c].eng / p1[c].reach, e1 = cur[c].eng / cur[c].reach;
+    if (e1 / e0 < 0.92) out.push({ sev: 'bad', t: `${CHANNELS[c]} 반응률이 ${(e0 * 100).toFixed(1)}% → ${(e1 * 100).toFixed(1)}%로 하락했습니다`, a: '제목·첫 장 훅과 질문형 CTA(댓글·저장 유도)를 점검하세요.' });
+  });
+  ALLCH.forEach(c => {
+    const pub = myContents().filter(x => x.ch === c && inPeriod(x, 'cur')).length, nxt = myContents().filter(x => x.ch === c && x.ago < 0 && x.ago >= -7).length;
+    if (!pub) out.push({ sev: 'bad', t: `${CHANNELS[c]}: 이번 기간 발행이 없습니다`, a: '발행 공백은 도달 하락으로 이어집니다. 플래너에서 일정을 확인하세요.' });
+    else if (!nxt) out.push({ sev: 'warn', t: `${CHANNELS[c]}: 앞으로 7일 발행 예정이 없습니다`, a: '[플래너]에서 소재를 배정하세요.' });
+  });
+  const eff = ALLCH.map(c => [c, cur[c].clicks / cur[c].views]).sort((a, b) => a[1] - b[1])[0];
+  out.push({ sev: 'info', t: `${CHANNELS[eff[0]]}은(는) 조회 대비 링크 클릭률이 가장 낮습니다 (${(eff[1] * 100).toFixed(2)}%)`, a: '링크 위치(설명란·고정댓글·본문 상단)와 CTA 문구를 보강하세요. 자세한 내용은 [유입 성과]에서 확인하세요.' });
+  const topC = myContents().filter(c => inPeriod(c, 'cur')).sort((a, b) => b.reach - a.reach)[0];
+  if (topC) out.push({ sev: 'good', t: `이번 기간 최고 성과: "${topC.title}" (${CHANNELS[topC.ch]} · ${topC.format}, 도달 ${n(topC.reach)})`, a: '같은 소재를 다른 채널 포맷으로 확장해 보세요.' });
+  const order = { bad: 0, warn: 1, good: 2, info: 3 };
+  return out.sort((a, b) => order[a.sev] - order[b.sev]).slice(0, 7);
+}
+function viewSummary(tabs) {
+  const cards = ALLCH.map(c => {
+    const a = agg([c], 'cur');
+    return `<div class="card chcard" style="border-top:3px solid ${CH_COLOR[c]}"><h3><span class="dot" style="background:${CH_COLOR[c]}"></span>${CHANNELS[c]} <a class="more" onclick="S.ch='${c}';render()">상세 →</a></h3>
+      ${metricBlock(c, 'reach', '도달', n)}${metricBlock(c, 'views', '조회', n)}${metricBlock(c, 'eng', `반응 <small>(반응률 ${(a.eng / a.reach * 100).toFixed(1)}%)</small>`, n)}${metricBlock(c, 'gain', '팔로워 증가', v => '+' + n(v))}</div>`;
+  }).join('');
+  const SEV = { bad: ['주의', 'bad'], warn: ['확인', 'warn'], good: ['호재', 'good'], info: ['참고', 'info'] };
+  const list = issues().map(i => `<div class="issue ${i.sev}"><span class="sev">${SEV[i.sev][0]}</span><div><b>${i.t}</b><div class="hint">→ ${i.a}</div></div></div>`).join('');
+  return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()}</div>
+  <div class="grid g3">${cards}</div>
+  <div class="grid g3" style="margin-top:12px">${topCards()}</div>
+  <div class="card" style="margin-top:12px"><h3>핵심 이슈 <small>세 채널을 통합해서 본 변화와 점검 사항</small> <span class="sample">규칙 기반 샘플 · 실제는 Claude가 요약</span></h3>${list}</div>`;
+}
+
 function viewOps() {
   const chs = pick(), all = S.ch === 'ALL';
   const tabs = [['ALL', '전체'], ...ALLCH.map(c => [c, CHANNELS[c]])].map(([k, l]) => `<button class="${S.ch === k ? 'on' : ''}" onclick="S.ch='${k}';render()">${l}</button>`).join('');
+  if (all) return viewSummary(tabs);
   const list = myContents().filter(c => chs.includes(c.ch) && inPeriod(c, 'cur'));
   const byFmt = {}; list.forEach(c => { const r = byFmt[c.format] ||= { n: 0, reach: 0 }; r.n++; r.reach += c.reach; });
   const best = Object.entries(byFmt).sort((a, b) => b[1].reach / b[1].n - a[1].reach / a[1].n)[0];
