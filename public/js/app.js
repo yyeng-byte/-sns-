@@ -89,12 +89,19 @@ const trendSeries = (chs, key) => [{ name: '이번 기간', color: 'var(--brand)
   ...cmpList().filter(([, p]) => valid(p)).map(([l, p], i) => ({ name: l, color: i ? 'var(--c-bl)' : 'var(--sub)', dash: i ? '2 4' : 1, vals: dailySeries(chs, key, p) }))];
 
 // ---------- 채널 성과 · 전체 요약 ----------
+function miniLine(series) {
+  const len = series[0].vals.length; if (len < 2) return '';
+  const w = 300, h = 74, all = series.flatMap(s => s.vals), mx = Math.max(...all), mn = Math.min(...all), pad = (mx - mn) * 0.12 || 1;
+  const X = i => 3 + i / (len - 1) * (w - 6), Y = v => h - 5 - (v - (mn - pad)) / ((mx + pad) - (mn - pad)) * (h - 10);
+  const lines = series.slice().reverse().map(s => `<polyline fill="none" stroke="${s.color}" stroke-width="${s.w}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ''} stroke-linejoin="round" points="${s.vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}"/>`).join('');
+  const last = series[0].vals;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none"><line x1="0" x2="${w}" y1="${h - 1}" y2="${h - 1}" stroke="var(--line)"/>${lines}<circle cx="${X(len - 1)}" cy="${Y(last[len - 1])}" r="3.5" fill="${series[0].color}"/></svg>`;
+}
 function metricBlock(c, key, label, fmt) {
   const cur = agg([c], 'cur')[key];
-  const items = [['이번', cur, null]].concat(cmpList().map(([l, p]) => { const a = agg([c], p); return [l, a.na ? null : a[key], a.na ? null : chg(cur, a[key])]; }));
-  const mx = Math.max(1, ...items.map(x => x[1] || 0));
-  const rows = items.map(([l, v, d], i) => `<div class="brow"><small>${l}</small><div class="track">${v === null ? '' : `<i style="width:${Math.max(2, v / mx * 100)}%;background:${i ? 'var(--sub)' : CH_COLOR[c]};opacity:${i === 0 ? 1 : i === 1 ? .5 : .28}"></i>`}</div><b>${v === null ? '—' : fmt(v)}</b><span class="dl">${d === null ? '' : delta(d)}</span></div>`).join('');
-  return `<div class="mblock"><div class="mlabel">${label}</div>${rows}</div>`;
+  const series = [{ color: CH_COLOR[c], w: 2.5, vals: dailySeries([c], key, 'cur') },
+    ...cmpList().filter(([, p]) => valid(p)).map(([l, p], i) => ({ color: 'var(--sub)', w: 1.8, dash: i ? '2 3' : '6 4', vals: dailySeries([c], key, p) }))];
+  return `<div class="mblock"><div class="mtop"><span class="mlabel">${label}</span><b class="mval">${fmt(cur)}</b></div>${badges(x => x[key], [c])}${miniLine(series)}</div>`;
 }
 function topCards() {
   const defs = [['IG', 'reach', '도달'], ['YT', 'views', '조회'], ['BL', 'views', '조회']];
@@ -144,7 +151,8 @@ function viewSummary(tabs) {
   }).join('');
   const SEV = { bad: ['주의', 'bad'], warn: ['확인', 'warn'], good: ['호재', 'good'], info: ['참고', 'info'] };
   const list = issues().map(i => `<div class="issue ${i.sev}"><span class="sev">${SEV[i.sev][0]}</span><div><b>${i.t}</b><div class="hint">→ ${i.a}</div></div></div>`).join('');
-  return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()}</div>
+  const lg = `<span class="lg"><svg width="30" height="8"><line x1="0" x2="30" y1="4" y2="4" stroke="var(--brand)" stroke-width="2.5"/></svg>이번</span>` + cmpList().map(([l], i) => `<span class="lg"><svg width="30" height="8"><line x1="0" x2="30" y1="4" y2="4" stroke="var(--sub)" stroke-width="1.8" stroke-dasharray="${i ? '2 3' : '6 4'}"/></svg>${l}</span>`).join('');
+  return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()}</div><div class="subtabs">${lg}<span class="hint">· 선=일별 추이(3일 이동평균) · 굵은 점=최근 값</span></div>
   <div class="grid g3">${cards}</div>
   <div class="grid g3" style="margin-top:12px">${topCards()}</div>
   <div class="card" style="margin-top:12px"><h3>핵심 이슈 <small>세 채널을 통합해서 본 변화와 점검 사항</small> <span class="sample">규칙 기반 샘플 · 실제는 Claude가 요약</span></h3>${list}</div>`;

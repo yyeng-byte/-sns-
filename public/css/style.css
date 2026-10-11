@@ -65,3 +65,5 @@ pre.out{white-space:pre-wrap;background:var(--bg);padding:12px;border-radius:8px
 .sev{flex:none;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;color:#fff;background:var(--sub)}
 .issue.bad .sev{background:var(--down)}.issue.warn .sev{background:#f08c00}.issue.good .sev{background:var(--up)}
 @media (max-width:760px){.brow{grid-template-columns:44px 1fr 56px 68px}}
+.mtop{display:flex;justify-content:space-between;align-items:baseline}.mval{font-size:20px}.mblock .cmp{margin:0 0 2px}
+.lg{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--sub);margin-right:10px}
