@@ -37,7 +37,12 @@
     <section id="view"></section>
   </main>
 </div>
-<script src="js/data.js"></script>
-<script src="js/app.js"></script>
+<script>
+// 실데이터(/api/data)가 있으면 사용하고, 없으면(연결 전·미리보기) 샘플 데이터로 동작
+fetch('api/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null).then(d => {
+  window.LIVE = d && !d.error ? d : null;
+  return ['js/data.js', 'js/app.js'].reduce((p, s) => p.then(() => new Promise(res => { const e = document.createElement('script'); e.src = s; e.onload = res; document.body.appendChild(e); })), Promise.resolve());
+});
+</script>
 </body>
 </html>

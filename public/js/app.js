@@ -82,7 +82,7 @@ const cmpList = () => S.cmpMode === 'custom' ? [['비교 기간', 'cmp']] : [[pr
 const rangeText = p => { const [f, t] = pr(p); return `${fmtD(dayDate(t))}–${fmtD(dayDate(f))}`; };
 function badges(get, chs) {                   // 이번 값 대비 비교 기간별 증감률
   const c = get(agg(chs, 'cur'));
-  return `<div class="cmp">${cmpList().map(([l, p]) => { const a = agg(chs, p); return `<span><small>${l}</small> ${a.na ? '<span class="delta flat">데이터 없음</span>' : delta(chg(c, get(a)))}</span>`; }).join('')}</div>`;
+  return `<div class="cmp">${cmpList().map(([l, p]) => { const a = agg(chs, p); return `<span><small>${l}</small> ${a.na || !get(a) ? '<span class="delta flat">데이터 없음</span>' : delta(chg(c, get(a)))}</span>`; }).join('')}</div>`;
 }
 const legendLine = () => `<span class="hint">이번 ${rangeText('cur')}${cmpList().map(([l, p]) => ` · ${l} ${valid(p) ? rangeText(p) : '(데이터 없음)'}`).join('')}</span>`;
 const trendSeries = (chs, key) => [{ name: '이번 기간', color: 'var(--brand)', vals: dailySeries(chs, key, 'cur') },
@@ -253,7 +253,7 @@ function viewRank() {
   const body = rows.slice(0, S.more).map((c, i) => `<tr><td>${i + 1}</td><td class="l"><b>${esc(c.title)}</b><br><span class="tag">${CHANNELS[c.ch]}</span><span class="tag">${c.format}</span><span class="tag">${c.id}</span></td><td><b>${n(c.clicks)}</b></td><td>${(c.rate * 100).toFixed(2)}%</td><td class="l" style="white-space:normal;min-width:260px">${c.why}</td></tr>`).join('');
   const label = S.scope === 'ALL' ? '전체' : chName(S.scope);
   return `<div class="subtabs">${tabs}</div><div class="subtabs">${legendLine()} <span class="hint">· 채널 밖에서 우리 사이트로 들어온 유입(비틀리 클릭)</span></div>
-  <div class="card kpi big"><div class="lbl">${label} 유입수 <span class="hint">· 비틀리 클릭 합계 (샘플)</span></div><div class="val">${n(cur)}</div><div class="cmp">${cmpList().map(([l, p]) => { const v = clickSum(S.scope, p); return `<span><small>${l}</small> ${v === null ? '<span class="delta flat">데이터 없음</span>' : delta(chg(cur, v))}</span>`; }).join('')}</div></div>
+  <div class="card kpi big"><div class="lbl">${label} 유입수 <span class="hint">· 비틀리 클릭 합계 (샘플)</span></div><div class="val">${n(cur)}</div><div class="cmp">${cmpList().map(([l, p]) => { const v = clickSum(S.scope, p); return `<span><small>${l}</small> ${!v ? '<span class="delta flat">데이터 없음</span>' : delta(chg(cur, v))}</span>`; }).join('')}</div></div>
   <div class="grid g2" style="margin-top:12px">
    <div class="card"><h3>${label} 유입 추이 <small>점선/점=비교 기간</small></h3>${lineChart([{ name: '이번 기간', color: 'var(--brand)', vals: clickSeries(S.scope, 'cur') }, ...cmpList().filter(([, p]) => valid(p)).map(([l, p], i) => ({ name: l, color: i ? 'var(--c-bl)' : 'var(--sub)', dash: i ? '2 4' : 1, vals: clickSeries(S.scope, p) }))], [fmtD(dayDate(S.end0 + S.days - 1)), fmtD(dayDate(S.end0))])}</div>
    <div class="card"><h3>채널별 유입 <small>막대를 누르면 해당 채널 선택</small></h3><div class="cbars">${bars}</div></div>
@@ -360,6 +360,7 @@ function viewPlan() {
 // ---------- 공통 ----------
 const VIEWS = { perf: viewOps, traffic: viewRank, why: viewWhy, rise: viewRise, rec: viewRec, make: viewMake, plan: viewPlan };
 function render() {
+  $('.demo-note').innerHTML = LIVE_STATE.on ? `✅ <b>실데이터</b> 연결됨<br>갱신 ${new Date(LIVE_STATE.at).toLocaleString('ko-KR')}<br>※ 경쟁사·추천·블로그·비틀리는 아직 샘플/미연결` : '⚠ 지금은 <b>가짜 데이터</b> 화면입니다.<br>실제 연결은 다음 단계에서 진행합니다.';
   $('#nav').innerHTML = TABS.map(([k, i, l]) => `<a class="${S.tab === k ? 'on' : ''}" onclick="S.tab='${k}';render()">${i} ${l}</a>`).join('');
   $('#title').textContent = TABS.find(t => t[0] === S.tab)[2];
   $('#f-hint').textContent = '';

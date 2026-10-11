@@ -1,0 +1,46 @@
+name: 과거 데이터 채우기 (작년 동기 비교용, 수동 실행)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'youtube 또는 instagram'
+        default: 'youtube'
+      from:
+        description: '시작일 (예: 2025-09-01)'
+        required: true
+      to:
+        description: '종료일 (예: 2025-11-30)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: 기간을 나눠서 일별 성과만 채우기
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          COLLECT_SECRET: ${{ secrets.COLLECT_SECRET }}
+          SOURCE: ${{ github.event.inputs.source }}
+          FROM: ${{ github.event.inputs.from }}
+          TO: ${{ github.event.inputs.to }}
+        run: |
+          set -u
+          step=28; [ "$SOURCE" = "instagram" ] && step=10     # 인스타는 요청당 호출이 많아 짧게 끊음
+          fail=0
+          end=$(date -d "$TO" +%s); from=$(date -d "$FROM" +%s)
+          while [ "$end" -ge "$from" ]; do
+            span=$(( (end - from) / 86400 + 1 )); [ "$span" -gt "$step" ] && span=$step
+            for brand in KK SE; do
+              code=$(curl -sS -o out.json -w '%{http_code}' -X POST -H "X-Collect-Secret: $COLLECT_SECRET" \
+                "$SITE_URL/api/collect?source=$SOURCE&brand=$brand&days=$span&end=$(date -d @$end +%F)&only=daily")
+              echo "== $SOURCE $brand ~$(date -d @$end +%F) ($span일) → HTTP $code"; cut -c1-400 out.json; echo
+              [ "$code" = "200" ] || fail=1
+            done
+            end=$(( end - span * 86400 ))
+          done
+          exit $fail

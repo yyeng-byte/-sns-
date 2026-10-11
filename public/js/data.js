@@ -100,3 +100,30 @@ const KEYWORDS = [
 // 실버에듀넷 네이버 카페: 비틀리 클릭만 수집 (기존 대시보드의 '실버카페' 링크 규칙)
 const CAFE_DAILY = [];
 for (let i = DAYS - 1; i >= 0; i--) CAFE_DAILY[i] = Math.round(70 * (0.6 + R() * 0.9) * (i < 20 ? 1.1 : 1));
+
+// ---------- 실데이터 적용 (index.html 이 /api/data 를 받아오면 window.LIVE 에 담김) ----------
+const LIVE_STATE = { on: false, at: '' };
+function applyLive(L) {
+  const toDate = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s)); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+  const idxOf = dt => Math.round((TODAY - new Date(dt.getFullYear(), dt.getMonth(), dt.getDate())) / 864e5);
+  const num = v => (v === '' || v == null || isNaN(+v)) ? 0 : +v;
+  for (const b in BRANDS) for (const c in CHANNELS) DAILY[b][c] = Array.from({ length: DAYS }, (_, i) => ({ date: dayDate(i), reach: 0, views: 0, likes: 0, comments: 0, shares: 0, saves: 0, eng: 0, clicks: 0, gain: 0, followers: 0 }));
+  for (const r of L.daily || []) {
+    const dt = toDate(r.date), arr = DAILY[r.brand]?.[r.channel]; if (!dt || !arr) continue;
+    const i = idxOf(dt); if (i < 0 || i >= DAYS) continue;
+    const o = arr[i]; Object.assign(o, { reach: num(r.reach), views: num(r.views), likes: num(r.likes), comments: num(r.comments), shares: num(r.shares), saves: num(r.saves), clicks: num(r.clicks), gain: num(r.followers_gain), followers: num(r.followers) });
+    o.eng = o.likes + o.comments + o.shares + o.saves;
+  }
+  const latest = {};
+  for (const m of L.metrics || []) if (!latest[m.content_id] || String(m.snapshot_date) > String(latest[m.content_id].snapshot_date)) latest[m.content_id] = m;
+  CONTENTS.length = 0; FUTURE.length = 0;
+  for (const r of L.contents || []) {
+    if (!BRANDS[r.brand] || !CHANNELS[r.channel]) continue;
+    const dt = toDate(r.published_at) || toDate(r.scheduled_at) || new Date(r.published_at || r.scheduled_at || TODAY); if (!dt || isNaN(dt)) continue;
+    const m = latest[r.content_id] || {}, status = r.status || 'published', ago = idxOf(dt);
+    const likes = num(m.likes), eng = likes + num(m.comments) + num(m.shares) + num(m.saves);
+    CONTENTS.push({ id: r.content_id, brand: r.brand, ch: r.channel, title: r.title || '(제목 없음)', format: r.format || '', topic: r.topic_category || '', date: dt, ago, status, reach: num(m.reach), views: num(m.views), eng, clicks: 0, growth7: 0 });
+  }
+  LIVE_STATE.on = true; LIVE_STATE.at = L.generatedAt || '';
+}
+if (window.LIVE) applyLive(window.LIVE);

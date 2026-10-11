@@ -1,0 +1,117 @@
+{
+  "contents": {
+    "label": "콘텐츠 목록",
+    "columns": [
+      ["content_id", "콘텐츠 ID (브랜드-채널-YYMMDD-NN). 모든 탭의 연결 키"],
+      ["brand", "KK 키드키즈 / SE 실버에듀넷"],
+      ["channel", "IG 인스타 / YT 유튜브 / BL 블로그"],
+      ["topic_id", "소재 묶음 ID (선택)"],
+      ["title", "제목"],
+      ["format", "카드뉴스·릴스·피드사진·롱폼·쇼츠·블로그글"],
+      ["topic_category", "소재 분류 (선택, 분석용)"],
+      ["status", "idea / drafting / review / scheduled / published"],
+      ["scheduled_at", "발행 예정일"],
+      ["published_at", "실제 발행일시"],
+      ["post_url", "게시물 URL"],
+      ["external_id", "채널 쪽 ID (인스타 media_id / 유튜브 videoId / 블로그 logNo)"],
+      ["owner", "담당자"],
+      ["memo", "메모"],
+      ["created_at", "생성 시각"],
+      ["updated_at", "수정 시각"],
+      ["signup_count", "예약: 가입 수 (나중에)"],
+      ["ga4_sessions", "예약: GA4 세션 (나중에)"],
+      ["ext_1", "예비"],
+      ["ext_2", "예비"],
+      ["ext_3", "예비"]
+    ]
+  },
+  "channel_daily": {
+    "label": "채널 일별 성과",
+    "columns": [
+      ["key", "brand|channel|date (자동, 중복 방지용)"],
+      ["brand", "KK / SE"],
+      ["channel", "IG / YT / BL"],
+      ["date", "YYYY-MM-DD"],
+      ["reach", "도달 (유튜브는 조회수로 대체)"],
+      ["views", "조회"],
+      ["likes", "좋아요"],
+      ["comments", "댓글"],
+      ["shares", "공유"],
+      ["saves", "저장"],
+      ["followers", "팔로워/구독자 수"],
+      ["followers_gain", "팔로워 순증가"],
+      ["watch_minutes", "시청 시간(분)"],
+      ["clicks", "비틀리 클릭 (비틀리 연결 후)"],
+      ["source", "api / excel / manual"],
+      ["collected_at", "수집 시각"],
+      ["ext_1", "예비"],
+      ["ext_2", "예비"]
+    ]
+  },
+  "content_metrics": {
+    "label": "콘텐츠 성과",
+    "columns": [
+      ["key", "content_id|snapshot_date (자동)"],
+      ["content_id", "콘텐츠 ID"],
+      ["snapshot_date", "수집일 (누적 값 기준)"],
+      ["reach", "도달"],
+      ["views", "조회"],
+      ["likes", "좋아요"],
+      ["comments", "댓글"],
+      ["shares", "공유"],
+      ["saves", "저장"],
+      ["watch_minutes", "시청 시간(분)"],
+      ["avg_view_pct", "평균 시청 비율(%)"],
+      ["source", "api / excel / manual"],
+      ["collected_at", "수집 시각"],
+      ["ext_1", "예비"],
+      ["ext_2", "예비"]
+    ]
+  },
+  "bitly_clicks": {
+    "label": "비틀리 클릭",
+    "columns": [
+      ["key", "link_id|date (자동)"],
+      ["content_id", "연결된 콘텐츠 ID (가능한 경우)"],
+      ["brand", "KK / SE"],
+      ["channel", "IG / YT / BL / CF(카페)"],
+      ["link_id", "비틀리 링크 ID"],
+      ["link_title", "링크 제목 (키즈링크… 등 앞글자 규칙)"],
+      ["date", "YYYY-MM-DD"],
+      ["clicks", "클릭 수"],
+      ["collected_at", "수집 시각"],
+      ["ext_1", "예비"]
+    ]
+  },
+  "topics": {
+    "label": "소재 후보",
+    "columns": [
+      ["topic_id", "소재 ID"], ["brand", "KK / SE"], ["topic_title", "소재명"], ["source", "trend/competitor/ai_recommend/manual/past_hit"],
+      ["keywords", "쉼표 구분"], ["target_channels", "IG,BL …"], ["rationale", "추천 근거"], ["score", "점수"], ["status", "candidate/approved/in_production/published/dropped"],
+      ["content_ids", "이 소재로 만든 콘텐츠 ID"], ["created_by", "user / claude"], ["created_at", "생성 시각"], ["ext_1", "예비"]
+    ]
+  },
+  "competitors": {
+    "label": "경쟁사",
+    "columns": [
+      ["key", "competitor_id|snapshot_date (자동)"], ["competitor_id", "경쟁사 ID"], ["brand", "비교 대상 브랜드"], ["name", "이름"], ["channel", "IG/YT/BL"],
+      ["handle_or_url", "계정/주소"], ["snapshot_date", "수집일"], ["followers", "팔로워"], ["posts_30d", "최근 30일 게시 수"],
+      ["top_post_url", "인기 게시물 URL"], ["top_post_title", "인기 게시물 제목"], ["top_post_metric", "인기 게시물 수치"], ["note", "메모"], ["ext_1", "예비"]
+    ]
+  },
+  "keywords": {
+    "label": "키워드",
+    "columns": [
+      ["key", "brand|keyword|snapshot_date (자동)"], ["brand", "KK / SE"], ["keyword", "키워드"], ["snapshot_date", "수집일"],
+      ["volume_pc", "월 검색량 PC"], ["volume_mobile", "월 검색량 모바일"], ["competition", "경쟁도"], ["doc_count", "문서 수"], ["note", "메모"], ["ext_1", "예비"]
+    ]
+  },
+  "config": {
+    "label": "설정",
+    "columns": [["key", "설정 이름"], ["value", "값"], ["note", "설명"]]
+  },
+  "_sync": {
+    "label": "수집 기록",
+    "columns": [["run_at", "실행 시각"], ["source", "youtube / instagram"], ["brand", "KK / SE"], ["status", "ok / error / dry"], ["rows_daily", "일별 행 수"], ["rows_contents", "콘텐츠 행 수"], ["rows_metrics", "성과 행 수"], ["message", "메시지/오류"]]
+  }
+}

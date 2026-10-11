@@ -1,0 +1,36 @@
+name: 매일 자동 수집 (유튜브·인스타)
+
+on:
+  schedule:
+    - cron: '30 23 * * *'   # 한국시간 매일 08:30
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: '테스트 실행(시트에 쓰지 않음)이면 1'
+        default: '0'
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 유튜브·인스타 × 두 브랜드 수집
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          COLLECT_SECRET: ${{ secrets.COLLECT_SECRET }}
+          DRY: ${{ github.event.inputs.dry || '0' }}
+        run: |
+          set -u
+          fail=0
+          for source in youtube instagram; do
+            for brand in KK SE; do
+              code=$(curl -sS -o out.json -w '%{http_code}' -X POST -H "X-Collect-Secret: $COLLECT_SECRET" \
+                "$SITE_URL/api/collect?source=$source&brand=$brand&days=3&dry=$DRY")
+              echo "== $source $brand → HTTP $code"; cat out.json; echo
+              [ "$code" = "200" ] || fail=1
+            done
+          done
+          exit $fail
