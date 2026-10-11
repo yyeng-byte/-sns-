@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNS 콘텐츠 대시보드</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo">SNS 콘텐츠<small>브랜드마케팅파트</small></div>
+    <nav id="nav"></nav>
+    <div class="demo-note">⚠ 지금은 <b>가짜 데이터</b> 화면입니다.<br>실제 연결은 다음 단계에서 진행합니다.</div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <h1 id="title"></h1>
+      <div class="filters">
+        <label>브랜드
+          <select id="f-brand"></select>
+        </label>
+        <label>기간
+          <select id="f-days">
+            <option value="7">최근 7일</option>
+            <option value="30" selected>최근 30일</option>
+            <option value="60">최근 60일</option>
+          </select>
+        </label>
+        <span class="hint" id="f-hint"></span>
+      </div>
+    </header>
+    <section id="view"></section>
+  </main>
+</div>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
