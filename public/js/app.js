@@ -1,5 +1,5 @@
 const TABS = [
-  ['perf', '📊', '성과'], ['why', '🔍', '분석 (왜?)'], ['rise', '🚀', '급상승'],
+  ['perf', '📊', '채널 성과'], ['traffic', '🔗', '유입 성과'], ['why', '🔍', '분석 (왜?)'], ['rise', '🚀', '급상승'],
   ['rec', '💡', '추천'], ['make', '✍️', '제작'], ['plan', '🗓️', '플래너']
 ];
 const PRESET = { '1개월': 30, '3개월': 90, '6개월': 180, '12개월': 360 };
@@ -64,11 +64,6 @@ const chName = c => c === 'CF' ? '네이버 카페' : CHANNELS[c];
 const hasCafe = () => brands().includes('SE');
 const pick = () => S.ch === 'ALL' ? ALLCH : [S.ch];
 
-function viewPerf() {
-  const subs = [['ops', '운영 현황'], ['rank', '유입·링크 순위']];
-  return `<div class="subtabs">${subs.map(([k, l]) => `<button class="${S.sub === k ? 'on' : ''}" onclick="S.sub='${k}';render()">${l}</button>`).join('')}<span class="hint">${rangeLabel()} · 직전 같은 길이 기간과 비교</span></div>` + (S.sub === 'ops' ? viewOps() : viewRank());
-}
-
 function viewOps() {
   const chs = pick(), cur = agg(chs, 'cur'), prev = agg(chs, 'prev');
   const tabs = [['ALL', '전체'], ...ALLCH.map(c => [c, CHANNELS[c]])].map(([k, l]) => `<button class="${S.ch === k ? 'on' : ''}" onclick="S.ch='${k}';render()">${l}</button>`).join('');
@@ -78,7 +73,7 @@ function viewOps() {
   const dR = chg(cur.reach, prev.reach);
   const label = S.ch === 'ALL' ? '전체 채널' : CHANNELS[S.ch];
   const insight = `${label} 도달이 직전 대비 ${dR >= 0 ? '+' : ''}${dR.toFixed(1)}% ${dR >= 3 ? '상승' : dR <= -3 ? '하락' : '정체'}했습니다.${best ? ` 이번 기간 평균 도달이 가장 높은 포맷은 ${best[0]}(${n(best[1].reach / best[1].n)})입니다.` : ''}`;
-  const kp = [['views', '조회', '채널 합계'], ['reach', '도달', '중복 포함'], ['eng', '반응', '좋아요·댓글·공유·저장'], ['gain', '팔로워 증가', '순증가'], ['clicks', '링크 유입', '비틀리 클릭']];
+  const kp = [['views', '조회', '채널 합계'], ['reach', '도달', '중복 포함'], ['eng', '반응', '좋아요·댓글·공유·저장'], ['gain', '팔로워 증가', '순증가']];
   const kpis = kp.map(([k, l, note]) => `<div class="card kpi"><div class="lbl">${l}</div><div class="val">${n(cur[k])}</div>${delta(chg(cur[k], prev[k]))} <span class="hint">${note}</span><div>${spark(dailySeries(chs, k, 'cur'), 'var(--brand)')}</div></div>`).join('');
 
   const er = cur.eng / cur.reach, erP = prev.eng / prev.reach;
@@ -91,14 +86,16 @@ function viewOps() {
   const hi = [['BEST', best1, c => `조회 ${n(c.views)} · 반응 ${n(c.eng)}`], ['RECENT', recent, c => `${mmdd(c.date)} 발행 · 조회 ${n(c.views)}`], ['RISING', rising, c => `최근 7일 ${c.growth7 >= 0 ? '+' : ''}${c.growth7}% · 조회 ${n(c.views)}`]]
     .filter(x => x[1]).map(([t, c, f]) => `<div class="hl"><span class="tag">${t}</span><span class="tag">${CHANNELS[c.ch]} · ${c.format}</span><b>${esc(c.title)}</b><div class="hint">${f(c)}</div><div class="hint">${c.id}</div></div>`).join('');
 
-  return `<div class="subtabs">${tabs}</div>
+  const rowsC = [...list].sort((x, y) => y.reach - x.reach).slice(0, 10).map(c => `<tr><td class="l"><b>${esc(c.title)}</b><br><span class="tag">${CHANNELS[c.ch]}</span><span class="tag">${c.format}</span><span class="tag">${c.id}</span></td><td>${mmdd(c.date)}</td><td>${n(c.views)}</td><td>${n(c.reach)}</td><td>${n(c.eng)}</td><td>${(c.eng / c.reach * 100).toFixed(1)}%</td></tr>`).join('');
+  return `<div class="subtabs">${tabs}<span class="hint">${rangeLabel()} · 직전 같은 길이 기간과 비교 · 채널 안에서의 성과</span></div>
   <div class="banner"><div><b>${label} 핵심 인사이트</b> <span class="sample">규칙 기반 샘플 · 실제는 Claude 해설</span><br>${insight}</div><button onclick="S.tab='why';render()">원인 분석 보기 →</button></div>
-  <div class="grid g5">${kpis}</div>
+  <div class="grid g4">${kpis}</div>
   <div class="grid g2" style="margin-top:12px">
    <div class="card"><h3>${label} 성과 추이 <small>도달 · 3일 이동평균 · 점선=직전 기간</small></h3>${lineChart([{ name: '이번 기간', color: 'var(--brand)', vals: dailySeries(chs, 'reach', 'cur') }, { name: '직전 기간', color: 'var(--sub)', dash: 1, vals: dailySeries(chs, 'reach', 'prev') }], ['시작', '끝'])}</div>
    <div class="card"><h3>${label} 특이사항 <small>지금 확인하면 좋은 신호</small></h3><table>${signals.map((s, i) => `<tr><td class="l"><b>${i + 1}. ${s[0]}</b></td><td>${s[1]}</td></tr>`).join('')}</table></div>
   </div>
-  <div class="card"><h3>콘텐츠 하이라이트 <small>반응이 좋았던 콘텐츠와 최근 성과</small></h3><div class="grid g3">${hi || '<span class="hint">기간 내 콘텐츠 없음</span>'}</div></div>`;
+  <div class="card"><h3>콘텐츠 하이라이트 <small>반응이 좋았던 콘텐츠와 최근 성과</small></h3><div class="grid g3">${hi || '<span class="hint">기간 내 콘텐츠 없음</span>'}</div></div>
+  <div class="card"><h3>콘텐츠별 채널 성과 <small>도달순 상위 10건 / 전체 ${list.length}건 · 링크 유입은 [유입 성과]에서</small></h3><div class="tablewrap"><table><tr><th>콘텐츠</th><th>발행</th><th>조회</th><th>도달</th><th>반응</th><th>반응률</th></tr>${rowsC || '<tr><td colspan=6>기간 내 발행 콘텐츠 없음</td></tr>'}</table></div></div>`;
 }
 
 // 비틀리 클릭 (scope: ALL | IG | YT | BL | CF)
@@ -139,7 +136,7 @@ function viewRank() {
   const rows = S.scope === 'CF' ? [] : rankRows();
   const body = rows.slice(0, S.more).map((c, i) => `<tr><td>${i + 1}</td><td class="l"><b>${esc(c.title)}</b><br><span class="tag">${CHANNELS[c.ch]}</span><span class="tag">${c.format}</span><span class="tag">${c.id}</span></td><td><b>${n(c.clicks)}</b></td><td>${(c.rate * 100).toFixed(2)}%</td><td class="l" style="white-space:normal;min-width:260px">${c.why}</td></tr>`).join('');
   const label = S.scope === 'ALL' ? '전체' : chName(S.scope);
-  return `<div class="subtabs">${tabs}<span class="hint">채널을 고르면 유입수와 링크 순위가 함께 바뀝니다</span></div>
+  return `<div class="subtabs">${tabs}<span class="hint">${rangeLabel()} · 채널 밖에서 우리 사이트로 들어온 유입(비틀리 클릭)</span></div>
   <div class="card kpi big"><div class="lbl">${label} 유입수 <span class="hint">· 비틀리 클릭 합계 (샘플)</span></div><div class="val">${n(cur)}</div>${delta(chg(cur, prev))} <span class="hint">직전 기간 ${n(prev)}</span></div>
   <div class="grid g2" style="margin-top:12px">
    <div class="card"><h3>${label} 유입 추이 <small>점선=직전 기간</small></h3>${lineChart([{ name: '이번 기간', color: 'var(--brand)', vals: clickSeries(S.scope, 'cur') }, { name: '직전 기간', color: 'var(--sub)', dash: 1, vals: clickSeries(S.scope, 'prev') }], ['시작', '끝'])}</div>
@@ -245,11 +242,11 @@ function viewPlan() {
 }
 
 // ---------- 공통 ----------
-const VIEWS = { perf: viewPerf, why: viewWhy, rise: viewRise, rec: viewRec, make: viewMake, plan: viewPlan };
+const VIEWS = { perf: viewOps, traffic: viewRank, why: viewWhy, rise: viewRise, rec: viewRec, make: viewMake, plan: viewPlan };
 function render() {
   $('#nav').innerHTML = TABS.map(([k, i, l]) => `<a class="${S.tab === k ? 'on' : ''}" onclick="S.tab='${k}';render()">${i} ${l}</a>`).join('');
   $('#title').textContent = TABS.find(t => t[0] === S.tab)[2];
-  $('#f-hint').textContent = ['why'].includes(S.tab) ? '직전 같은 길이 기간과 비교' : '';
+  $('#f-hint').textContent = '';
   $('#view').innerHTML = VIEWS[S.tab]();
 }
 $('#f-brand').innerHTML = '<option value="ALL">전체</option>' + Object.entries(BRANDS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
